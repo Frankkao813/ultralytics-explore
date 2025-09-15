@@ -539,9 +539,10 @@ class v8PoseLoss(v8DetectionLoss):
         )
 
         target_scores_sum = max(target_scores.sum(), 1)
-
+        label_mask = (target_scores > 0).to(dtype=pred_scores.dtype)
         # Cls loss
-        # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
+        loss[1] = self.varifocal_loss(pred_scores, target_scores.to(dtype), label_mask) / target_scores_sum  # VFL way
+        
         loss[3] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
 
         # Bbox loss
