@@ -40,6 +40,11 @@ class VarifocalLoss(nn.Module):
 
     def forward(self, pred_score: torch.Tensor, gt_score: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
         """Compute varifocal loss between predictions and ground truth."""
+        if not getattr(self, "_banner", False):
+            print(f">>> USING *MY* VarifocalLoss <<< (alpha={self.alpha}, gamma={self.gamma})")
+            print("    shapes:", "pred", tuple(pred_score.shape), "gt", tuple(gt_score.shape), "label", tuple(label.shape))
+            self._banner = True
+            
         weight = self.alpha * pred_score.sigmoid().pow(self.gamma) * (1 - label) + gt_score * label
         with autocast(enabled=False):
             loss = (
