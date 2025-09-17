@@ -319,7 +319,7 @@ class v8DetectionLoss:
             mask_gt,
         )
 
-        # target_scores_sum = max(target_scores.sum(), 1)
+        target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
         #loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
