@@ -207,7 +207,26 @@ class v8DetectionLoss:
         h = model.args  # hyperparameters
 
         m = model.model[-1]  # Detect() module
-        self.bce = nn.BCEWithLogitsLoss(reduction="none")
+
+        # optional pos_weight
+        # Accept both dict-like and Namespace-like args; fall back to None.
+        def _get(hyp, key, default=None):
+            try:
+                return hyp.get(key, default)       # dict-like
+            except AttributeError:
+                return getattr(hyp, key, default)  # Namespace-like
+
+        pw_list = _get(h, "pos_weight", None)   # e.g., [1.0, 9.0, 25.0, ...] or None
+
+        # Build a tensor if provided; validate length. Neutral (all-ones) if None.
+        if pw_list is not None:
+            pw = torch.as_tensor(pw_list, dtype=torch.float, device=device)
+            # number of classes is known only after we read m.nc below, so we defer length check.
+        else:
+            pw = None
+
+        
+        
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
@@ -216,6 +235,22 @@ class v8DetectionLoss:
         self.device = device
 
         self.use_dfl = m.reg_max > 1
+
+
+
+        if pw is None:
+            # neutral weighting (no change to BCE behavior)
+            self.cls_pos_weight = None
+        else:
+            if pw.numel() != self.nc:
+                raise ValueError(f"pos_weight length {pw.numel()} != number of classes {self.nc}")
+            # register_buffer would be used on nn.Module; here we keep a device tensor
+            self.cls_pos_weight = pw
+
+        self.bce = nn.BCEWithLogitsLoss(
+            reduction="none",
+            pos_weight=self.cls_pos_weight  # None → neutral, tensor → reweighted
+        )
 
         self.assigner = TaskAlignedAssigner(topk=tal_topk, num_classes=self.nc, alpha=0.5, beta=6.0)
         self.bbox_loss = BboxLoss(m.reg_max).to(device)
